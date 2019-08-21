@@ -21,7 +21,9 @@ import {
 import { withStyles } from '@material-ui/core/styles';
 import AddIcon from '@material-ui/icons/Add';
 import DeleteIcon from '@material-ui/icons/Delete';
-import deepcopy from 'deepcopy';
+import clonedeep from 'lodash.clonedeep';
+
+import ClientSuggest from '../components/autosuggest';
 
 
 const styles = {
@@ -49,7 +51,7 @@ const newClient = {
         dx_code: 'F',
         cpt_code: '',
         insurance: 'BCBS',
-        amount_paid: '$',
+        paid: '$',
         comments: ''
     }
 };
@@ -57,22 +59,27 @@ const newClient = {
 class DaySheet extends Component {
     constructor(props) {
         super(props);
-        console.log('passed in props:');
+        console.log('DaySheet props:');
         console.log(props);
 
-        let clients = {...newClient}
-        if (Object.getOwnPropertyNames(this.props.clients).length !== 0) {
-            clients = this.props.clients;
-        }
-
-        console.log('initialized state keys:');
-        console.log(clients);
-        this.state = {clients}
+        this.state = {
+            clients: {
+                ...this.props.clients,
+                new: {
+                    name: '',
+                    dx_code: 'F',
+                    cpt_code: '',
+                    insurance: 'BCBS',
+                    paid: '$',
+                    comments: ''
+                }
+            }
+        };
+        console.log('set DaySheet state: ', this.state);
 
         this.addClient = this.addClient.bind(this);
         this.deleteClient = this.deleteClient.bind(this);
         this.buildRow = this.buildRow.bind(this);
-        this._parseKeyAndField = this._parseKeyAndField.bind(this);
 
         this.handleInput = this.handleInput.bind(this);
         this.handleNameBlur = this.handleNameBlur.bind(this);
@@ -80,24 +87,35 @@ class DaySheet extends Component {
     }
 
     addClient(e) {
-        console.log(e);
-        console.log(e.currentTarget);
+        console.log('adding client row...');
         this.setState(
-            (prevState) => Object.assign(prevState.clients, newClient),
-            () => console.log(this.state.clients)
+            (prevState) => ({
+                clients: {
+                    ...prevState.clients,
+                    new: {
+                        name: '',
+                        dx_code: 'F',
+                        cpt_code: '',
+                        insurance: 'BCBS',
+                        paid: '$',
+                        comments: ''
+                    }
+                }
+            }),
+            () => console.log('added row.', this.state)
         );
     }
 
     deleteClient(e) {
-        console.log(e);
-        console.log(e.currentTarget);
-        let {key, field} = this._parseKeyAndField(e.currentTarget.name);
+        console.log('deleting client row...');
+        let { key, field } = this._parseKeyAndField(e.currentTarget.name);
         this.setState(
             (prevState) => {
-                delete prevState.clients[key];
-                return prevState;
+                let state = clonedeep(prevState.clients);
+                delete state[key];
+                return {clients: state};
             },
-            () => console.log(this.state.clients)
+            () => console.log('deleted row.', this.state)
         );
     }
 
@@ -111,10 +129,10 @@ class DaySheet extends Component {
     }
 
     handleInput(e) {
-        console.log('handleInput');
+        console.log('in handleInput');
         let value = e.target.value;
-        let clients = {...this.state.clients}
-        let {key, field} = this._parseKeyAndField(e.target.name);
+        let clients = clonedeep(this.state.clients)
+        let { key, field } = this._parseKeyAndField(e.target.name);
 
         console.log(`updating state with key: ${key}
                     field: ${field}
@@ -122,63 +140,92 @@ class DaySheet extends Component {
         clients[key][field] = value
 
         this.setState(
-            {clients}, () => console.log(this.state.clients)
+            {clients}, () => console.log(this.state)
         )
     }
 
     handleNameBlur(e) {
-        console.log('handleNameBlur');
+        console.log('in handleNameBlur');
         let value = e.target.value;
-        let clients = {...this.state.clients}
-        let {key, field} = this._parseKeyAndField(e.target.name);
+        let clients = clonedeep(this.state.clients)
+        let { key, field } = this._parseKeyAndField(e.target.name);
+        console.log(`value: ${value}`);
+        console.log('current state: ', this.state);
 
+        // This section updates the index key value if there is a change while
+        // preserving the client data.  We'll then update the name field with
+        // the key value.
         if (value != key) {
-            const clientCopy = deepcopy(clients[key]);
-            console.log(`copy: ${clientCopy}`);
+            const index = this.props.clientIndex;
+            const clientCopy = index.hasOwnProperty(value)
+                               ? clonedeep(index[value])
+                               : clonedeep(clients[key]);
+            console.log('copy:');
+            console.log(clientCopy);
             console.log(`deleting: ${key}`);
             delete clients[key];
-            console.log(`adding new key: ${value}, with old data.`);
+            console.log(`updating key to '${value}' for client copy.`);
             clients[value] = clientCopy;
-            console.log(`setting field key to: ${value}`);
-            key = value;
-        }
-        console.log(`updating state with key: ${key}
-                    field: ${field}
-                    value: ${value}`);
-        clients[key][field] = value
 
-        this.setState(
-            {clients}, () => console.log(this.state.clients)
-        )
+            clients[value][field] = value
+            console.log('updated name.');
+            this.setState(
+                {clients: clients},
+                () => console.log('handled blur.', this.state)
+            );
+        }
     }
 
     handleSubmit(e) {
-        // e.preventDefault();
-        console.log(this.state)
-        alert('Will upload to Google and e-mail Kristin.')
+        console.log('in handleSubmit');
+        // const fs = require('fs')
+
+        // fs.writeFile('/Users/flavio/test.txt', content, (err) => {
+        //   if (err) {
+        //     console.error(err)
+        //     return
+        //   }
+        //   //file written successfully
+        // })
+        this.props.onSubmit(this.state.clients);
+        alert('Will upload to Google and e-mail Kristin.');
+        this.setState({
+            clients: {
+                new: {
+                    name: '',
+                    dx_code: 'F',
+                    cpt_code: '',
+                    insurance: 'BCBS',
+                    paid: '$',
+                    comments: ''
+                }
+            }
+        });
     }
 
     buildRow(client) {
+        console.log('building row...');
         const [ key, data ] = client;
-        const { classes } = this.props;
-        console.log('builing row; data:');
-        console.log(data);
+        const { classes, clientIndex } = this.props;
+        console.log('deconstructed clientIndex: ', clientIndex);
+        const clientNameTextFieldProps = {
+            margin: 'normal',
+            name: `name-${key}`,
+            value: data.name,
+            placeholder: "Enter a client's name",
+            InputProps: {
+                classes: {
+                    underline: classes.underline
+                }
+            }
+        };
 
         return (
             <TableRow key={key} color="secondary">
                 <TableCell component="th" scope="row">
-                    <TextField
-                        margin="normal"
-                        name={`name-${key}`}
-                        defaultValue={data.name}
-                        placeholder="Enter a client's name"
-                        onBlur={this.handleNameBlur}
-                        InputProps={{
-                            classes: {
-                                underline: classes.underline
-                            }
-                        }}
-                    />
+                    <ClientSuggest suggestions={Object.keys(clientIndex)}
+                                   clientProps={clientNameTextFieldProps}
+                                   onBlur={this.handleNameBlur} />
                 </TableCell>
                 <TableCell>
                     <TextField
@@ -268,7 +315,7 @@ class DaySheet extends Component {
 
     render() {
         const { classes } = this.props;
-        let clients = this.state.clients;
+        const { clients } = this.state;
         console.log('render clients:');
         console.log(clients);
         let rows = Object.entries(clients).map(this.buildRow);

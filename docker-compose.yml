@@ -1,0 +1,11 @@
+version: '3.7'
+services:
+  self-pay:
+    container_name: self-pay
+    build:
+      context: .
+    image: self-pay:1
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./app:/usr/src/app

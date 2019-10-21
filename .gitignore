@@ -1,2 +1,6 @@
-app/dist/
+app/ui/dist/
 node_modules/
+*.pyc
+__pycache__
+
+app/back-end/client-index.json

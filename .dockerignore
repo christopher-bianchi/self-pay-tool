@@ -1,2 +1,5 @@
-app/dist/
+app/ui/dist/
 **/node_modules/
+**/__pycache__/
+
+app/back-end/client-index.json

@@ -15,7 +15,7 @@ class App extends Component {
     constructor(props) {
         super(props);
 
-        this.state ={
+        this.state = {
             clientIndex: {},
             // TODO: May be used in the future for loading templates.
             //       Will add a template name to be used as a `key` then we can
@@ -24,30 +24,49 @@ class App extends Component {
         };
     }
 
-    // componentDidMount() {
-    //     this.loadClients();
-    // }
+    componentDidMount = () => {
+        this.loadClients();
+    }
 
-    // loadClients() {
-    //     fetch('./store/clients.json')
-    //         .then(json => {
-    //           let clients = JSON.parse(json);
-    //           console.log('clients loaded:');
-    //           console.log(clients);
-    //         })
-    //         .catch(error => console.error(error));
-    // }
+    loadClients = () => {
+        fetch('http://localhost:8085/pay/clients')
+        .then(response => response.json())
+        .then(clients => {
+            console.log('clients loaded:');
+            console.log(clients);
+
+            this.setState(
+                {clientIndex: {...clients}},
+                () => console.log('index initialized:', this.state.clientIndex)
+            );
+        })
+        .catch(error => console.error(error));
+    }
 
     updateClientIndex = (clients) => {
         console.log('current Client Index: ', this.state.clientIndex);
         console.log('clients to add to index: ', clients);
 
-        this.setState(
-            (prevState) => ({
-                clientIndex: {...prevState.clientIndex, ...clients}
-            }),
-            () => console.log('index updated:', this.state.clientIndex)
-        );
+        // Persist the clients.
+        fetch('http://localhost:8085/pay/daysheet', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json;charset=utf-8'
+            },
+            body: JSON.stringify(clients)
+        })
+        .then(response => response.json())
+        .then(result => {
+            console.log('index saved.');
+
+            this.setState(
+                (prevState) => ({
+                    clientIndex: {...prevState.clientIndex, ...clients}
+                }),
+                () => console.log('index updated:', this.state.clientIndex)
+            );
+        })
+        .catch(error => console.error(error));
     }
 
     render() {

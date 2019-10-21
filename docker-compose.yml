@@ -1,11 +1,20 @@
 version: '3.7'
 services:
-  self-pay:
-    container_name: self-pay
+  self-pay-ui:
+    image: self-pay-ui:2
+    container_name: self-pay-ui
     build:
-      context: .
-    image: self-pay:1
+      context: ./app/ui
     ports:
       - "8080:8080"
     volumes:
-      - ./app:/usr/src/app
+      - ./app/ui:/usr/src/app
+  self-pay-back:
+    image: self-pay-back:1
+    container_name: self-pay-back
+    build:
+      context: ./app/back-end
+    ports:
+      - "8085:5000"
+    volumes:
+      - ./app/back-end:/app

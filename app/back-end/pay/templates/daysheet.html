@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <style type="text/css">
+        table {
+          border-collapse: collapse;
+          padding: 5px;
+          width: 100%;
+        }
+        table, th, td {
+          border: 1px solid black;
+        }
+        th {
+          height: 25px;
+        }
+        th, td {
+          padding: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div style="font-weight: bold; margin-bottom: 5px;">
+        <span>Provider: {{signoff_name}}</span>
+    </div>
+    <table>
+        <tr>
+            <th>Date of Service</th>
+            <th style="text-align: left;">Client Name</th>
+            <th style="text-align: left;">CPT Code</th>
+            <th>Billed Amount</th>
+            <th>Diagnosis</th>
+            <th style="text-align: left;">Insurance</th>
+            <th>Amount Paid</th>
+            <th style="text-align: left;">Comments</th>
+        </tr>
+        {% for client in daysheet.values() -%}
+        <tr>
+            <td style="text-align: center;">{{date_of_service}}</td>
+            <td>{{client.name}}</td>
+            <td>{{client.cpt_code}}</td>
+            <td style="text-align: center;">&nbsp;</td>
+            <td style="text-align: center;">{{client.dx_code}}</td>
+            <td>{{client.insurance}}</td>
+            <td style="text-align: center;">{{client.paid}}</td>
+            <td>{{client.comments}}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

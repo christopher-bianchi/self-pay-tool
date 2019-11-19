@@ -1,7 +1,7 @@
 version: '3.7'
 services:
   self-pay-ui:
-    image: self-pay-ui:2
+    image: self-pay-ui:3
     container_name: self-pay-ui
     build:
       context: ./app/ui
@@ -10,7 +10,7 @@ services:
     volumes:
       - ./app/ui:/usr/src/app
   self-pay-back:
-    image: self-pay-back:1
+    image: self-pay-back:2
     container_name: self-pay-back
     build:
       context: ./app/back-end
@@ -18,3 +18,8 @@ services:
       - "8085:5000"
     volumes:
       - ./app/back-end:/app
+    environment:
+      - SELFPAY_CLINICIAN_NAME
+      - SELFPAY_MAILER_ACCOUNT_EMAIL
+      - SELFPAY_MAILER_ACCOUNT_TOKEN
+      - SELFPAY_RECIPIENT_EMAIL

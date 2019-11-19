@@ -1,17 +1,21 @@
 # coding:utf-8
-import csv, json, logging
+import csv, json, logging, smtplib
 
 from copy import deepcopy
-from flask import Blueprint, jsonify, request
+from datetime import datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from flask import (Blueprint,
+                   current_app,
+                   jsonify,
+                   request)
+from jinja2 import Environment, FileSystemLoader
 
 
 logger = logging.getLogger(__name__)
 pay = Blueprint('pay', __name__, url_prefix='/pay')
 
-
-@pay.route('/')
-def hello_world():
-    return 'Hello, World!'
+EMAIL_TEMPLATE = 'daysheet.html'
 
 
 @pay.route('/clients', methods=['GET'])
@@ -25,13 +29,8 @@ def get_clients():
 def submit_daysheet():
     logger.info('daysheet submitted.')
     logger.debug(request.json)
-    # accept a PUT
-    # update the cache index
-    # parse out a CSV
-    # upload CSV to Google
-    # email uploaded file
 
-    # {
+    # "foo": {
     #     "name": "foo",
     #     "dx_code": "F",
     #     "cpt_code": "",
@@ -42,7 +41,7 @@ def submit_daysheet():
     known_clients = _load_index()
     _add_clients_to_index(known_clients, request.json)
     _save_index(known_clients)
-    _write_daysheet(request.json)
+    _email_daysheet(request.json)
 
     return jsonify('ok')
 
@@ -74,12 +73,18 @@ def _load_index():
 
 
 def _save_index(client_data):
+    """
+    Write the Client JSON to disk.
+    """
     logger.info('saving client index...')
     with open('/app/client-index.json', 'w+') as index:
         json.dump(client_data, index)
 
 
 def _write_daysheet(daysheet):
+    """
+    Write the Daysheet CSV to disk.
+    """
     logger.info('writing csv...')
     header_keys = ['cpt_code',
                    'comments',
@@ -93,3 +98,69 @@ def _write_daysheet(daysheet):
         writer.writeheader()
         for client in daysheet.values():
             writer.writerow(client)
+
+
+def _email_daysheet(daysheet):
+    """
+    Opens an SMTP connection, logs in our mailer account and emails the
+    daysheet.
+    """
+    logger.info('Logging into gmail account...')
+
+    with smtplib.SMTP('smtp.gmail.com', 587) as email_conn:
+        email_conn.starttls()
+        email_conn.login(current_app.mailer_creds.email,
+                         current_app.mailer_creds.token)
+        _send_email(email_conn,
+                    current_app.mailer_creds.email,
+                    current_app.config['SELFPAY_RECIPIENT_EMAIL'],
+                    current_app.config['SELFPAY_CLINICIAN_NAME'],
+                    daysheet)
+
+
+def _create_daysheet_email(daysheet, signoff_name, date_of_service):
+    """
+    Build the email HTML body for the Daysheet.
+    """
+    env = Environment(loader=FileSystemLoader('/app/pay/templates'))
+    template = env.get_template(EMAIL_TEMPLATE)
+    email = template.render(daysheet=daysheet,
+                            signoff_name=signoff_name,
+                            date_of_service=date_of_service)
+
+    return email
+
+
+def _send_email(conn, sender, recipient, signoff_name, daysheet):
+    """
+    Send an email to inform our secret santa who they will be gifting.
+
+    :param conn: the connection to the email server.
+    """
+    logger.info('Sending daysheet to: {to}'.format(to=recipient))
+
+    today = datetime.now()
+    date_of_service = today.strftime('%m/%d/%Y')
+    email_body = _create_daysheet_email(daysheet, signoff_name, date_of_service)
+
+    # Create a multipart message and set headers
+    message = MIMEMultipart()
+    message["From"] = sender
+    message["To"] = recipient
+    message["Subject"] = 'Daysheet {date}'.format(date=date_of_service)
+
+    message.attach(MIMEText(email_body, 'html'))
+
+
+    # sheet = '/tmp/daysheet.csv'
+    # sheetname = 'Daysheet {year}-{month}-{day}.csv'.format(
+    #     year=today.year,
+    #     month=today.month,
+    #     day=today.day,
+    # )
+    # with open(sheet) as file:
+    #     attachment = MIMEText(file.read())
+    #     attachment.add_header('Content-Disposition', 'attachment', filename=sheetname)
+    #     message.attach(attachment)
+
+    conn.sendmail(sender, [recipient], message.as_string())
